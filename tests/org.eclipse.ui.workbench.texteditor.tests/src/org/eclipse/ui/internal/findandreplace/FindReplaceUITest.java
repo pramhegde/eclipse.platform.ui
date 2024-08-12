@@ -166,20 +166,20 @@ public abstract class FindReplaceUITest<AccessType extends IFindReplaceUIAccess>
 		assertEquals(0, (target.getSelection()).x);
 		assertEquals(4, (target.getSelection()).y);
 
-		dialog.simulateEnterInFindInputField(false);
+		dialog.simulateKeyboardInteractionInFindInputField(SWT.CR, false);
 		assertEquals(5, (target.getSelection()).x);
 		assertEquals(4, (target.getSelection()).y);
 
-		dialog.simulateEnterInFindInputField(true);
+		dialog.simulateKeyboardInteractionInFindInputField(SWT.CR, true);
 		assertEquals(0, (target.getSelection()).x);
 		assertEquals(4, (target.getSelection()).y);
 
 		// Keypad-Enter is also valid for navigating
-		dialog.simulateKeyPressInFindInputField(SWT.KEYPAD_CR, false);
+		dialog.simulateKeyboardInteractionInFindInputField(SWT.KEYPAD_CR, false);
 		assertEquals(5, (target.getSelection()).x);
 		assertEquals(4, (target.getSelection()).y);
 
-		dialog.simulateKeyPressInFindInputField(SWT.KEYPAD_CR, true);
+		dialog.simulateKeyboardInteractionInFindInputField(SWT.KEYPAD_CR, true);
 		assertEquals(0, (target.getSelection()).x);
 		assertEquals(4, (target.getSelection()).y);
 	}
@@ -214,7 +214,7 @@ public abstract class FindReplaceUITest<AccessType extends IFindReplaceUIAccess>
 		dialog.assertDisabled(SearchOptions.WHOLE_WORD);
 		dialog.assertSelected(SearchOptions.WHOLE_WORD);
 
-		dialog.simulateEnterInFindInputField(false);
+		dialog.simulateKeyboardInteractionInFindInputField(SWT.CR, false);
 		assertThat(target.getSelectionText(), is(dialog.getFindText()));
 
 		assertEquals(0, (target.getSelection()).x);
@@ -228,11 +228,11 @@ public abstract class FindReplaceUITest<AccessType extends IFindReplaceUIAccess>
 		dialog.setFindText("(a|bc)");
 
 		IFindReplaceTarget target= dialog.getTarget();
-		dialog.simulateEnterInFindInputField(false);
+		dialog.simulateKeyboardInteractionInFindInputField(SWT.CR, false);
 		assertEquals(0, (target.getSelection()).x);
 		assertEquals(1, (target.getSelection()).y);
 
-		dialog.simulateEnterInFindInputField(false);
+		dialog.simulateKeyboardInteractionInFindInputField(SWT.CR, false);
 		assertEquals(1, (target.getSelection()).x);
 		assertEquals(2, (target.getSelection()).y);
 	}
@@ -303,6 +303,29 @@ public abstract class FindReplaceUITest<AccessType extends IFindReplaceUIAccess>
 		assertThat(fTextViewer.getDocument().get(), is("text" + System.lineSeparator() + System.lineSeparator()));
 	}
 
+	@Test
+	public void testSearchTextSelectedWhenOpeningDialog() {
+		openTextViewer("test");
+
+		fTextViewer.setSelection(new TextSelection(0, 4));
+		initializeFindReplaceUIForTextViewer();
+
+		assertEquals("test", dialog.getFindText());
+		assertEquals(dialog.getSelectedFindText(), dialog.getFindText());
+	}
+
+	@Test
+	public void testSearchTextSelectedWhenSwitchingFocusToDialog() {
+		openTextViewer("");
+		initializeFindReplaceUIForTextViewer();
+
+		dialog.setFindText("text");
+		initializeFindReplaceUIForTextViewer();
+
+		assertEquals("text", dialog.getFindText());
+		assertEquals(dialog.getSelectedFindText(), dialog.getFindText());
+	}
+
 	private void assertScopeActivationOnTextInput(String input) {
 		openTextViewer(input);
 		fTextViewer.setSelection(new TextSelection(0, fTextViewer.getDocument().toString().length()));
@@ -315,6 +338,32 @@ public abstract class FindReplaceUITest<AccessType extends IFindReplaceUIAccess>
 	public void testSelectionOnOpenSetsScopedMode() {
 		assertScopeActivationOnTextInput("hello\r\nworld\r\nthis\r\nhas_many_lines");
 		assertScopeActivationOnTextInput("hello\nworld");
+	}
+
+	@Test
+	public void testActivateDialogSelectionActive_withRegExOptionActivated() {
+		openTextViewer("test text.*;");
+		initializeFindReplaceUIForTextViewer();
+		dialog.select(SearchOptions.REGEX);
+		fTextViewer.setSelection(new TextSelection("test ".length(), "text.*".length()));
+		reopenFindReplaceUIForTextViewer();
+		dialog.assertSelected(SearchOptions.REGEX);
+		assertEquals("text\\.\\*", dialog.getFindText());
+
+		dialog.performReplaceAll();
+		assertThat(fTextViewer.getDocument().get(), is("test ;"));
+	}
+
+	@Test
+	public void testReplaceIfSelectedOnStart() {
+		openTextViewer("abcdefg");
+		fTextViewer.setSelection(new TextSelection(2, 2));
+		initializeFindReplaceUIForTextViewer();
+
+		dialog.setReplaceText("aa");
+		dialog.performReplace();
+
+		assertThat(fTextViewer.getDocument().get(), is("abaaefg"));
 	}
 
 	protected AccessType getDialog() {
